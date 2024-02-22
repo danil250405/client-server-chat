@@ -38,17 +38,22 @@ int main( int argc, const char *argv[] ){
     srand(time(NULL)); // Инициализация генератора случайных чисел
 
    int len ;
-   struct sockaddr_un address ;//this is for local sockets
-   struct sockaddr_in addr;
-   socklen_t addr_size;
-   int result ;
-    char *ip = "127.0.0.1";
-    int port = 5000;
- //  const char *filename = argv[1];
-    //const char *message = argv[2];
+  // struct sockaddr_un address ;//usual (CS)
+//   struct sockaddr_in addr; // IPV4
+    struct sockaddr_in6 addr;
+    struct in6_addr ipv4_mapped_ipv6_addr;
 
-    const char *filename = "chat.txt";
-    const char *message = "Hello i am Daniil!";
+    socklen_t addr_size;
+   int result ;
+   // char *ip = "127.0.0.1";
+//    const char *filename = "chat.txt";
+//    const char *message = "Hello i am Daniil!";
+    int port = 5000;
+    const char *ip = argv[1];
+      const char *filename = argv[2];
+    const char *message = argv[3];
+
+
     if (strlen(message) > MAX_MSG_SIZE){
         printf("size message is bigger than max size");
         return 1;
@@ -60,20 +65,29 @@ int main( int argc, const char *argv[] ){
    atexit( cleanup ) ;
    //create unnamed socket
 
-    Sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    Sock_fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
     if (Sock_fd == -1) {
 
         perror("socket");
         return 1;
     }
+    /*IPV4*/
+//    memset(&addr, '\0', sizeof(addr));
+//    addr.sin_family = AF_INET;
+//    addr.sin_port = port;
+//    addr.sin_addr.s_addr = inet_addr(ip);
 
-    memset(&addr, '\0', sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = port;
-    addr.sin_addr.s_addr = inet_addr(ip);
+    /*IPV6*/
+    addr.sin6_family = AF_INET6;
+    // Преобразование IPv4 в IPv4-mapped IPv6 адрес
+    if (inet_pton(AF_INET6, ip, &(addr.sin6_addr)) == -1) {
+        perror("inet_pton");
+        return 1;
+    }
+    addr.sin6_port = htons(port);
 
 
-   //set server socket name
+    //set server socket name (CS)
 //    strcpy(address.sun_path, SERVER_ADDRESS);
 //    address.sun_family = AF_UNIX;
 //    len = sizeof(address);
@@ -86,7 +100,8 @@ int main( int argc, const char *argv[] ){
     }
     printf("Connected to server\n");
    printf("client sending message:%s\n", message ) ;
-   //write to socket
+
+   //SENDING message to server
 // Наполнение буфера данными для отправки
     strcpy(Buff, message);
 // Отправка сообщения на сервер
@@ -126,9 +141,6 @@ int main( int argc, const char *argv[] ){
         return 1;
     }
     close(fd);
-
-    //show server reply to user
-
    
    //close connection
 	close( Sock_fd ) ;

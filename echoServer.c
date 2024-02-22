@@ -18,6 +18,7 @@
 #include <ctype.h>
 #include "settings.h"
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 char Buff[ MAX_MSG_SIZE ] ;
 
@@ -50,43 +51,83 @@ int main( int argc, const char *argv[] ){
 
 	int len ;
 	int client_len ;
-    //IPV4
-    char *ip = "127.0.0.1";
-    int port = 5000;
-    struct sockaddr_in server_addr, client_addr;
+
+   // char *ip = "127.0.0.1";
+   const char *ip = argv[1];
+   int port = 5000;
+    //local sockets
+
+    //for TCP (IPV6) server
+    struct sockaddr_in6 server_addr, client_addr;
+    struct in6_addr ipv4_mapped_ipv6_addr;
+
+    //for TCP (IPV4) server
+    // struct sockaddr_in server_addr, client_addr;
+
+
+    //for usual server (SC)
+	//struct sockaddr_un server_address ;
+	//struct sockaddr_un client_address ;
+
     socklen_t addr_size;
-  //local sockets
-	struct sockaddr_un server_address ;         
-	struct sockaddr_un client_address ;         
-	
+
 	//if( argc < 2 ){
    		//printf("server error: no socket name specified.") ;
    		//return 1 ;
   // }
+
    atexit( cleanup ) ;
-	
-	//remove old sockets with same name as specified
-	
-	//create socket
-    server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_sockfd == -1) {
+
+
+    /* Create socket for listening (client requests) */
+    server_sockfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    if(server_sockfd == -1) {
         perror("socket");
         return 1;
     }
+
+    /* Set socket to reuse address */
+    /*IPV6*/
+    int flag = 1, reu;
+    reu = setsockopt(server_sockfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+    if(reu == -1) {
+        perror("setsockopt");
+        return 1;
+    }
+
+    /*IPV4*/
+//    server_sockfd = socket(AF_INET6, SOCK_STREAM, 0);
+//    if (server_sockfd == -1) {
+//        perror("socket");
+//        return 1;
+//    }
+
     printf("TCP server socked created!!!\n");
-    //заполняем массив елементами
+    /*IPV6*/
     memset(&server_addr, '\0', sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = port;
-    server_addr.sin_addr.s_addr = inet_addr(ip);
-    //bind a name to socket (second step IPV4)
+    server_addr.sin6_family = AF_INET6;
+    if (inet_pton(AF_INET6, ip, &(server_addr.sin6_addr)) == -1) {
+        perror("inet_pton");
+        return 1;
+    }
+    server_addr.sin6_port = htons(port);
+
+
+
+    //заполняем массив елементами
+    /* For IPV4*/
+    //memset(&server_addr, '\0', sizeof(server_addr));
+    //server_addr.sin_family = AF_INET;
+    //server_addr.sin_port = port;
+    //server_addr.sin_addr.s_addr = inet_addr(ip);
+    /*bind a name to socket (second step IPV4)*/
     if (bind(server_sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("bind");
         exit(1);
     }
     printf("Bind to the port number: %d\n", port);
 
-	//bind a name to socket (first step)
+	//bind a name to socket (CS)
 //    server_address.sun_family = AF_UNIX;
 //    strcpy(server_address.sun_path, SERVER_ADDRESS);
 //    unlink(server_address.sun_path); // Удаляем существующий файл с таким же именем, если есть
@@ -94,6 +135,7 @@ int main( int argc, const char *argv[] ){
 //        perror("bind");
 //        exit(1);
 //    }
+
 	//start listening on the named socket
     if (listen(server_sockfd, 5) == -1) { // Размер очереди входящих соединений - 5
         perror("listen");
