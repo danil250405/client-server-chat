@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include "settings.h"
+#include <arpa/inet.h>
 
 char Buff[ MAX_MSG_SIZE ] ;
 
@@ -49,7 +50,11 @@ int main( int argc, const char *argv[] ){
 
 	int len ;
 	int client_len ;
-	
+    //IPV4
+    char *ip = "127.0.0.1";
+    int port = 5000;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t addr_size;
   //local sockets
 	struct sockaddr_un server_address ;         
 	struct sockaddr_un client_address ;         
@@ -63,19 +68,32 @@ int main( int argc, const char *argv[] ){
 	//remove old sockets with same name as specified
 	
 	//create socket
-    server_sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sockfd == -1) {
-        perror("socket ERRORRRR on server");
+        perror("socket");
         return 1;
     }
-	//bind a name to socket
-    server_address.sun_family = AF_UNIX;
-    strcpy(server_address.sun_path, SERVER_ADDRESS);
-    unlink(server_address.sun_path); // Удаляем существующий файл с таким же именем, если есть
-    if (bind(server_sockfd, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
+    printf("TCP server socked created!!!\n");
+    //заполняем массив елементами
+    memset(&server_addr, '\0', sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = port;
+    server_addr.sin_addr.s_addr = inet_addr(ip);
+    //bind a name to socket (second step IPV4)
+    if (bind(server_sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("bind");
         exit(1);
     }
+    printf("Bind to the port number: %d\n", port);
+
+	//bind a name to socket (first step)
+//    server_address.sun_family = AF_UNIX;
+//    strcpy(server_address.sun_path, SERVER_ADDRESS);
+//    unlink(server_address.sun_path); // Удаляем существующий файл с таким же именем, если есть
+//    if (bind(server_sockfd, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
+//        perror("bind");
+//        exit(1);
+//    }
 	//start listening on the named socket
     if (listen(server_sockfd, 5) == -1) { // Размер очереди входящих соединений - 5
         perror("listen");
@@ -86,12 +104,14 @@ int main( int argc, const char *argv[] ){
 		printf("Server waiting.\n") ;
 		
 		//accept incomming client connection
-        client_len = sizeof(client_address);
-        client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
+        client_len = sizeof(client_addr);
+        client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_addr, &client_len);
         if (client_sockfd == -1) {
             perror("accept");
             exit(1);
         }
+        printf("Client connected.\n");
+
 		//read message from client
         int bytes_received = read(client_sockfd, Buff, sizeof(Buff));
         if (bytes_received == -1) {

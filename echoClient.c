@@ -16,7 +16,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <netinet/in.h>
 #include "settings.h"
+#include <arpa/inet.h>
 
 char Buff[ MAX_MSG_SIZE ] ;		// output message buffer
 char Fubb[ MAX_MSG_SIZE ] ;		// input message buffer
@@ -36,8 +38,12 @@ int main( int argc, const char *argv[] ){
     srand(time(NULL)); // Инициализация генератора случайных чисел
 
    int len ;
-   struct sockaddr_un address ;    //this is for local sockets
+   struct sockaddr_un address ;//this is for local sockets
+   struct sockaddr_in addr;
+   socklen_t addr_size;
    int result ;
+    char *ip = "127.0.0.1";
+    int port = 5000;
  //  const char *filename = argv[1];
     //const char *message = argv[2];
 
@@ -54,28 +60,34 @@ int main( int argc, const char *argv[] ){
    atexit( cleanup ) ;
    //create unnamed socket
 
-    Sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    Sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (Sock_fd == -1) {
 
         perror("socket");
         return 1;
     }
+
+    memset(&addr, '\0', sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = port;
+    addr.sin_addr.s_addr = inet_addr(ip);
+
+
    //set server socket name
-    strcpy(address.sun_path, SERVER_ADDRESS);
-    address.sun_family = AF_UNIX;
-    len = sizeof(address);
+//    strcpy(address.sun_path, SERVER_ADDRESS);
+//    address.sun_family = AF_UNIX;
+//    len = sizeof(address);
 
     //connect to server
-    result = connect(Sock_fd, (struct sockaddr *)&address, len);
+    result = connect(Sock_fd, (struct sockaddr *)&addr, sizeof(addr));
     if (result == -1) {
         perror("connect");
         return 1;
     }
-
+    printf("Connected to server\n");
    printf("client sending message:%s\n", message ) ;
    //write to socket
 // Наполнение буфера данными для отправки
-    //strcpy(Buff, "Hello, server!");
     strcpy(Buff, message);
 // Отправка сообщения на сервер
     result = write(Sock_fd, Buff, strlen(Buff));
@@ -107,7 +119,7 @@ int main( int argc, const char *argv[] ){
     char output_buffer[MAX_MSG_SIZE + 10]; // Префикс может содержать до 4 цифр и символ '\0'
     sprintf(output_buffer, "%03d %s\n", random_prefix, Fubb); // Форматирование с префиксом
 // Записать данные в файл
-    printf("\n%s", output_buffer);
+    printf("\nmessage which writing in the file: %s", output_buffer);
     int bytes_written = write(fd, output_buffer, strlen(output_buffer));
     if (bytes_written == -1) {
         perror("write");
